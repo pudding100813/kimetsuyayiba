@@ -53,9 +53,9 @@
                             
                             <!-- 第一排篩選條件 -->
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <!-- 一番賞名稱(topic) -->
+                                <!-- 系列名稱(topic) -->
                                 <div class="relative">
-                                    <label class="block text-xs text-white/60 mb-1 tracking-widest">一番賞名稱</label>
+                                    <label class="block text-xs text-white/60 mb-1 tracking-widest">系列名稱</label>
                                     <select v-model="filters.topic" class="w-full bg-neutral-800 border border-white/25 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
                                         <option value="">全部顯示 (所有名稱)</option>
                                         <option v-for="item in uniqueTopics" :key="item" :value="item">{{ item }}</option>
@@ -220,7 +220,7 @@
                                             </div>
                                         </div>
                                         <div>
-                                            <label class="font-bold text-[#182253] text-sm md:text-base">一番賞系列</label>
+                                            <label class="font-bold text-[#182253] text-sm md:text-base">系列名稱</label>
                                             <p class="text-gray-600 text-sm">{{ selectedProduct.topic || '無' }}</p>
                                         </div>
 
@@ -310,7 +310,7 @@
             }
         },
         computed: {
-            // 動態產生「一番賞名稱」下拉選單
+            // 動態產生「系列名稱」下拉選單
             uniqueTopics() {
                 return [...new Set(this.data.map(item => item.topic))].filter(Boolean);
             },
@@ -425,7 +425,7 @@
                         shiped:item['出貨時間']?true:false, // 出貨狀態
                         shiped_time:item['出貨時間'], // 出貨狀態
                         picked:item['取貨時間']?true:false, // 取貨狀態
-                        topic: item['一番賞名稱'],
+                        topic: item['系列名稱'],
                         award: item['獎項'],
                         award_name: item['獎項名稱'],
                         img: item['圖片網址'],
