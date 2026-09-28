@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一番賞 - 圖鑑</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../../public/ico/MYICO.ico">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+</head>
+<body class="relative min-h-screen text-slate-800 overflow-x-hidden
+             before:content-[''] before:fixed before:inset-0 before:-z-10
+             before:bg-black before:bg-cover">
+
+    <div id="app">
+        <div class="flex min-h-screen bg-black">
+
+            <!-- 引入共用導覽列元件 -->
+            <nav-bar :topic="this.topicName" :depth="2"></nav-bar>
+
+            <!-- ===== 主內容區域 (手機版：從上方導覽列下方開始 | 電腦版：從左側 220px 開始) ===== -->
+            <main id="scroll-area" class="fixed top-16 left-0 right-0 bottom-0 md:top-0 md:left-[220px] md:right-0 md:h-screen overflow-y-auto p-4 md:p-6">
+                
+                <!-- 讀取中 -->
+                <div v-if="loading" class="flex items-center justify-center h-full text-white/60">
+                    資料載入中...
+                </div>
+
+                <!-- 錯誤訊息 -->
+                <div v-else-if="errorMsg" class="flex items-center justify-center h-full text-red-400">
+                    {{ errorMsg }}
+                </div>
+
+                <div v-else class=" mx-auto space-y-6">
+                    <!-- 搜尋與篩選面板 -->
+                    <div class="bg-neutral-900/90 border border-white/10 rounded-xl p-4 md:p-6 shadow-lg text-white">
+                        
+                        <!-- 標題列 (手機版可點擊展開/收合，電腦版固定展開) -->
+                        <div class="flex items-center justify-between cursor-pointer md:cursor-default" @click="toggleFilters">
+                            <h2 class="text-lg font-bold tracking-wider text-orange-400 flex items-center gap-2 m-0">
+                                <span>🔍條件篩選器</span>
+                            </h2>
+                            <!-- 手機版專屬的展開/收合箭頭提示 -->
+                            <div class="text-xs text-orange-300 flex items-center gap-1 md:hidden">
+                                <span>{{ showFilters ? '收起條件' : '展開條件' }}</span>
+                                <svg class="w-4 h-4 transition-transform duration-300" :class="showFilters ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- 篩選條件內容區塊 (受 showFilters 控制，但在 md 以上電腦版強制顯示) -->
+                        <div v-show="showFilters" class="mt-4 pt-4 border-t border-white/10 space-y-4">
+                            
+                            <!-- 第一排篩選條件 -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <!-- 一番賞名稱(topic) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-white/60 mb-1 tracking-widest">一番賞名稱</label>
+                                    <select v-model="filters.topic" class="w-full bg-neutral-800 border border-white/25 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
+                                        <option value="">全部顯示 (所有名稱)</option>
+                                        <option v-for="item in uniqueTopics" :key="item" :value="item">{{ item }}</option>
+                                    </select>
+                                </div>
+                                <!-- 角色標籤(charter) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-white/60 mb-1 tracking-widest">角色標籤</label>
+                                    <select v-model="filters.charter" class="w-full bg-neutral-800 border border-white/25 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
+                                        <option value="">全部顯示 (所有角色)</option>
+                                        <option v-for="item in uniqueCharter" :key="item" :value="item">{{ item }}</option>
+                                    </select>
+                                </div>
+                                <!-- 購買管道 (or_from) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-white/60 mb-1 tracking-widest">購買管道</label>
+                                    <select v-model="filters.or_from" class="w-full bg-neutral-800 border border-white/25 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
+                                        <option value="">全部顯示 (所有管道)</option>
+                                        <option v-for="item in uniqueor_from" :key="item" :value="item">{{ item }}</option>
+                                    </select>
+                                </div>
+                                <!-- 購買情形(buyed) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-white/60 mb-1 tracking-widest">購買情形</label>
+                                    <select v-model="filters.buyed" @change="handleBuyedChange" class="w-full bg-neutral-800 border border-white/25 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
+                                        <option value="">全部顯示 (所有情形)</option>
+                                        <option value="0">未購入</option>
+                                        <option value="1">已購入</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 進階搜尋引擎 (已購入時顯示) -->
+                            <div v-if="filters.buyed === '1'" class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-white/10">
+                                <!-- 出貨狀態(shiped) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-orange-300 mb-1 tracking-widest">出貨狀態</label>
+                                    <select v-model="filters.shiped" class="w-full bg-neutral-800 border border-orange-400/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
+                                        <option value="">全部顯示</option>
+                                        <option value="0">未出貨</option>
+                                        <option value="1">已出貨</option>
+                                    </select>
+                                </div>
+                                <!-- 出貨日期區間 (or_date) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-orange-300 mb-1 tracking-widest">出貨日期區間</label>
+                                    <input 
+                                        type="text" 
+                                        id="daterange-input" 
+                                        placeholder="請選擇出貨日期區間"
+                                        class="w-full bg-neutral-800 border border-orange-400/50 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer"
+                                        readonly
+                                    >
+                                </div>
+                                <!-- 取貨狀態(picked) -->
+                                <div class="relative">
+                                    <label class="block text-xs text-orange-300 mb-1 tracking-widest">取貨狀態</label>
+                                    <select v-model="filters.picked" class="w-full bg-neutral-800 border border-orange-400/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-400 transition-colors cursor-pointer">
+                                        <option value="">全部顯示</option>
+                                        <option value="0">未取貨</option>
+                                        <option value="1">已取貨</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 清除篩選按鈕 -->
+                            <div class="flex justify-end pt-2">
+                                <button @click="resetFilters" class="text-xs text-white/50 hover:text-orange-400 transition-colors underline underline-offset-4">
+                                    重設篩選條件
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 正方形卡片網格排版 -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pb-12">
+                        <div 
+                            v-for="product in filteredProducts" 
+                            :key="product.id"
+                            class="rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow flex flex-col relative"
+                            :class="product.buyed ? 'bg-orange-400 text-black' : 'bg-white text-slate-800'"
+                        >
+                            <!-- 已購入浮動標籤 -->
+                            <div v-if="product.buyed" class="absolute top-2 right-2 bg-black/70 text-orange-300 text-[10px] px-2 py-0.5 rounded-full z-10 font-bold tracking-wider">
+                                已購入
+                            </div>
+
+                            <!-- 卡片圖片 (正方形) -->
+                            <div class="aspect-square bg-gray-200 overflow-hidden cursor-pointer relative" @click="openModal(product)">
+                                <img 
+                                    v-if="product.img" 
+                                    :src="product.img" 
+                                    :alt="product.award_name"
+                                    class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                                    loading="lazy"
+                                >
+                                <div v-else class="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center p-2">
+                                    <span>無法載入圖片</span>
+                                </div>
+                            </div>
+
+                            <!-- 卡片內容 -->
+                            <div class="p-3 md:p-4 flex-1 flex flex-col justify-between cursor-pointer" @click="openModal(product)">
+                                <div>
+                                    <h3 class="font-bold text-sm md:text-base mb-1 truncate" :class="product.buyed ? 'text-black' : 'text-gray-800'">
+                                        {{ product.award_name }}
+                                    </h3>
+                                    <p class="text-xs mb-2 truncate" :class="product.buyed ? 'text-black/80' : 'text-gray-500'">
+                                        {{ product.topic }}
+                                    </p>
+                                </div>
+
+                                <div class="flex flex-wrap gap-1 mt-2">
+                                    <span 
+                                        v-for="tag in parseTags(product.charter)"
+                                        :key="tag"
+                                        class="text-xs px-2 py-0.5 rounded text-black font-medium"
+                                        :class="getTagClass(tag)"
+                                    >
+                                        {{ tag }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== 詳細資訊 Modal ===== -->
+                    <div v-if="selectedProduct" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" @click="closeModal">
+                        <div class="bg-white rounded-lg w-full max-w-sm md:max-w-2xl shadow-2xl flex flex-col max-h-[90vh] text-slate-800" @click.stop>
+                            <!-- Modal 頭部 -->
+                            <div class="flex justify-between items-center p-4 md:p-6 border-b flex-shrink-0">
+                                <h2 class="text-lg md:text-2xl font-bold text-gray-800 flex-1 truncate">{{ selectedProduct.award }} - {{ selectedProduct.award_name }}</h2>
+                                <button @click="closeModal" class="text-gray-500 hover:text-gray-700 text-2xl flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">×</button>
+                            </div>
+
+                            <!-- Modal 內容 -->
+                            <div class="p-4 md:p-6 overflow-y-auto flex-1">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                                    <!-- 圖片 -->
+                                    <div class="flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden aspect-square">
+                                        <img 
+                                            v-if="selectedProduct.img" 
+                                            :src="selectedProduct.img" 
+                                            :alt="selectedProduct.award_name"
+                                            class="w-full h-full object-cover"
+                                        >
+                                        <div v-else class="text-gray-400 text-sm">無圖片</div>
+                                    </div>
+
+                                    <!-- 詳細資訊 -->
+                                    <div class="space-y-3 md:space-y-4">
+                                        <div v-if="selectedProduct.charter">
+                                            <div class="flex flex-wrap gap-2 mt-2">
+                                                <span 
+                                                    v-for="tag in parseTags(selectedProduct.charter)"
+                                                    :key="tag"
+                                                    class="text-xs px-2 py-0.5 rounded text-black font-medium"
+                                                    :class="getTagClass(tag)"
+                                                >
+                                                    {{ tag }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="font-bold text-[#182253] text-sm md:text-base">一番賞系列</label>
+                                            <p class="text-gray-600 text-sm">{{ selectedProduct.topic || '無' }}</p>
+                                        </div>
+
+                                        <div v-if="selectedProduct.or_from">
+                                            <label class="font-bold text-[#182253] text-sm md:text-base">購入管道</label>
+                                            <p class="text-gray-600 text-sm">{{ selectedProduct.or_from || '無' }}</p>
+                                        </div>
+
+                                        <div v-if="selectedProduct.or_date">
+                                            <label class="font-bold text-[#182253] text-sm md:text-base">購買時間</label>
+                                            <p class="text-gray-600 text-sm">{{ showDate(selectedProduct.or_date) }}</p>
+                                        </div>
+                                        <div v-if="selectedProduct.or_status">
+                                            <label class="font-bold text-[#182253] text-sm md:text-base">商品狀況</label>
+                                            <p class="text-gray-600 text-sm">{{selectedProduct.or_status}}</p>
+                                        </div>
+                                        <div v-if="selectedProduct.price">
+                                            <label class="font-bold text-[#182253] text-sm md:text-base">價格</label>
+                                            <p class="text-gray-600 text-lg font-semibold">{{selectedProduct.price}}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal 底部 -->
+                            <div class="flex justify-end p-4 md:p-6 border-t gap-2 flex-shrink-0">
+                                <button 
+                                    @click="closeModal"
+                                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors text-sm md:text-base"
+                                >
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Moment.js (Daterangepicker 必要依賴) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<!-- Daterangepicker JS -->
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<!-- CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Vue3.0  -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<!-- Vue的共用元件 & 邏輯,main.js 之前引入 -->
+<script src="../../public/vue-components/nav-bar.js"></script>
+<script src="../../public/vue-mixins/scroll-mixin.js"></script>
+<!-- 共用主程式 -->
+<script type="text/javascript" src="../../public/cm-utils/main.js"></script>
+<!-- Google Apps Script -->
+<script type="text/javascript" src="../../public/cm-utils/gas.js"></script>
+
+<!-- 頁面主邏輯 -->
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        // 註冊元件
+        components: {
+            'nav-bar': NavBar
+        },
+        data() {
+            return {
+                topicName:"ichibanguzi",
+                data: [],             // 原始 API 資料
+                loading: true,
+                errorMsg: '',
+                showFilters: window.innerWidth >= 768,
+                selectedProduct: null,
+                // 篩選條件變數
+                filters: {
+                    topic: '',
+                    or_from: '',
+                    buyed: '',
+                    charter: '',
+                    // 進階搜尋條件
+                    shiped: '',
+                    shiped_date: null,
+                    picked: ''
+                }
+            }
+        },
+        computed: {
+            // 動態產生「一番賞名稱」下拉選單
+            uniqueTopics() {
+                return [...new Set(this.data.map(item => item.topic))].filter(Boolean);
+            },
+            // 動態產生「購買管道」下拉選單
+            uniqueor_from() {
+                return [...new Set(this.data.map(item => item.or_from))].filter(Boolean);
+            },
+            // 動態產生「角色標籤」下拉選單
+            uniqueCharter() {
+                return [...new Set(this.data.map(item => item.charter))].filter(Boolean);
+            },
+            // 過濾
+            filteredProducts() {
+                return this.data.filter(item => {
+                    const matchTopic = !this.filters.topic || item.topic === this.filters.topic;
+                    const matchor_from = !this.filters.or_from || item.or_from === this.filters.or_from;
+                    const matchCharter = !this.filters.charter || item.charter === this.filters.charter;
+                    
+                    let matchBuyed = true;
+                    if (this.filters.buyed !== '') {
+                        matchBuyed = item.buyed === (this.filters.buyed === '1');
+                    }
+
+                    let matchShiped = true;
+                    let matchDateRange = true;
+                    let matchPicked = true;
+
+                    if (this.filters.buyed === '1') {
+                        if (this.filters.shiped !== '') {
+                            matchShiped = item.shiped === (this.filters.shiped === '1');
+                        }
+                        
+                        // 處理日期區間過濾
+                        if (this.filters.shiped_date && this.filters.shiped_date.start && this.filters.shiped_date.end) {
+                            const startDate = new Date(this.filters.shiped_date.start).setHours(0,0,0,0);
+                            const endDate = new Date(this.filters.shiped_date.end).setHours(23,59,59,999);
+                            
+                            if (item.or_date) {
+                                const itemDate = new Date(item.or_date).setHours(0,0,0,0);
+                                matchDateRange = itemDate >= startDate && itemDate <= endDate;
+                            } else {
+                                matchDateRange = false;
+                            }
+                        }
+
+                        if (this.filters.picked !== '') {
+                            matchPicked = item.picked === (this.filters.picked === '1');
+                        }
+                    }
+
+                    return matchTopic && matchor_from && matchCharter && matchBuyed && matchShiped && matchDateRange && matchPicked;
+                });
+            },
+        },
+        methods: {
+            // 開啟 Modal
+            openModal(product) {
+                this.selectedProduct = product;
+            },
+            // 關閉 Modal
+            closeModal() {
+                this.selectedProduct = null;
+            },
+            // 標籤解析輔助函式 (若有多個標籤以逗號分隔時適用)
+            parseTags(tagStr) {
+                if (!tagStr) return [];
+                return tagStr.split(',').map(t => t.trim()).filter(Boolean);
+            },
+            getTagClass(tag) {
+                if (tag === '炭治郎') {
+                    return 'bg-green-500/30 text-green-700 border border-green-500/20';
+                } else if (tag === '義勇') {
+                    return 'bg-blue-500/30 text-blue-700 border border-blue-500/20';
+                } else {
+                    return 'bg-pink-500/30 text-pink-700 border border-pink-500/20';
+                }
+            },
+            // 切換展開/收合
+            toggleFilters() {
+                // 為了避免電腦版點擊標題沒反應，我們讓這個開關主要在手機版或任何尺寸皆可切換
+                this.showFilters = !this.showFilters;
+                // 如果展開時剛好包含日期區間元件，確保它重新初始化
+                if (this.showFilters && this.filters.buyed === '1') {
+                    this.$nextTick(() => {
+                        this.initDateRangePicker();
+                    });
+                }
+            },
+            // 監聽購買情形改變：如果不是已購入，自動清除進階搜尋條件
+            handleBuyedChange() {
+                if (this.filters.buyed !== '1') {
+                    this.filters.shiped = '';
+                    this.filters.shiped_date = null;
+                    this.filters.picked = '';
+                    $('#daterange-input').val('');
+                } else {
+                    // 當切換為「已購入」時，等待 DOM 渲染完後初始化日期外掛
+                    this.$nextTick(() => {
+                        this.initDateRangePicker();
+                    });
+                }
+            },
+            // 取得資料
+            async fetchData() {
+                try {
+                    const response = await fetch(`../../public/assets/${this.topicName}/collection_data.json`);
+                    if (!response.ok) throw new Error('資料讀取失敗');
+                    const list = await response.json();
+                    this.data = list.map((item, idx) => ({
+                        id: idx,
+                        buyed:item['購買時間']?true:false, // 已購買
+                        shiped:item['出貨時間']?true:false, // 出貨狀態
+                        shiped_time:item['出貨時間'], // 出貨狀態
+                        picked:item['取貨時間']?true:false, // 取貨狀態
+                        topic: item['一番賞名稱'],
+                        award: item['獎項'],
+                        award_name: item['獎項名稱'],
+                        img: item['圖片網址'],
+                        price: item['價格'],
+                        or_date:item['購買時間'],
+                        or_from:item['購買管道'],
+                        or_status:item['商品狀況'],
+                        charter:item['角色標籤'],
+                    }));
+                } catch (err) {
+                    console.error(err);
+                    this.errorMsg = '圖片載入失敗,請稍後再試';
+                } finally {
+                    this.loading = false;
+                }
+            },
+            // 重設篩選條件
+            resetFilters() {
+                this.filters.topic = '';
+                this.filters.or_from = '';
+                this.filters.buyed = '';
+                this.filters.charter = '';
+                this.filters.shiped = '';
+                this.filters.shiped_date = null;
+                this.filters.picked = '';
+                $('#daterange-input').val(''); // 清除外掛輸入框顯示
+            },
+            initDateRangePicker() {
+                const self = this;
+                const $input =$('#daterange-input');
+                if ($input.length === 0) return; // 如果元素不存在則跳過
+
+                // 如果已經初始化過，先銷毀避免重複綁定
+                if ($input.data('daterangepicker')) {$input.data('daterangepicker').remove();
+                }
+
+                $input.daterangepicker({
+                    autoUpdateInput: false,
+                    startDate: moment().subtract(29, 'days'),
+                    endDate: moment(),
+                    ranges: {
+                    '今天': [moment(), moment()],
+                    '昨天': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    '本周': [moment().subtract(6, 'days'), moment()],
+                    '本月': [moment().startOf('month'), moment().endOf('month')],
+                    },
+                    locale: {
+                        format: 'YYYY-MM-DD',
+                        applyLabel: '確定',
+                        cancelLabel: '清除',
+                        fromLabel: '從',
+                        toLabel: '到',
+                        daysOfWeek: ['日', '一', '二', '三', '四', '五', '六'],
+                        monthNames: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                        firstDay: 1
+                    }
+                }, function(start, end) {
+                    self.filters.shiped_date = {
+                        start: start.format('YYYY-MM-DD'),
+                        end: end.format('YYYY-MM-DD')
+                    };
+                    $input.val(start.format('YYYY-MM-DD') + ' ～ ' + end.format('YYYY-MM-DD'));
+                });
+
+                $input.on('cancel.daterangepicker', function() {$(this).val('');
+                    self.filters.shiped_date = null;
+                });
+            },
+        },
+        /*---------------------------------------------*/
+        // 如果要用在 Vue的Template 中，一定要把它掛載到 VUE上
+        /*---------------------------------------------*/
+        created() {
+            this.showDate = window.showDate;
+        },
+        mounted() {
+            this.showDate = window.showDate;
+            this.fetchData();
+        }
+    }).mount('#app');
+</script>
+</html>

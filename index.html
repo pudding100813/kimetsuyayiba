@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" type="image/x-icon" href="public/ico/INDEX.ico">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+    <title>布丁的鬼滅之刃蒐集圖冊</title>
+    <style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        overflow-x: hidden;
+        font-family: "Noto Serif TC", "Yu Mincho", "Hiragino Mincho ProN", serif, sans-serif;
+    }
+
+    /* 滿版背景設定 */
+    .hero-container {
+        position: relative;
+        width: 100vw;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-x: hidden;
+        background: url('public/img/index/bg.png') no-repeat center center;
+        background-size: cover;
+        padding: 2.5rem 1rem;
+    }
+    /* 總包覆容器，改為垂直排列 */
+    .hero-content {
+        position: relative;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2.5rem; /* Logo 與下方選單的間距 */
+    }
+
+    /* Logo 容器與進場動畫 */
+    .hero-logo-wrap {
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 1s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .hero-logo-wrap.is-loaded {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Logo 圖片大小設定（可根據實際圖片比例調整） */
+    .hero-logo {
+        max-width: 280px;
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    /* 調整原本 menu-list 的定位，移除原本的 z-index 和 opacity（交給 hero-content 或各自控制） */
+    .menu-list {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 3rem;
+        padding: 0.5rem;
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s,
+                    transform 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s;
+    }
+
+    /* 左右裝飾雲紋 - 共通樣式 */
+    .bg-cloud {
+        position: fixed;
+        pointer-events: none;
+        z-index: 10;
+        transition: opacity 1.2s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform, opacity;
+        max-width: 30vw;
+        height: auto;
+    }
+
+    /* 左側雲紋 */
+    .bg-cloud-left {
+        left: 0;
+        bottom: 10%;
+        opacity: 0;
+        transform: translateX(-80px);
+    }
+
+    /* 右側雲紋 */
+    .bg-cloud-right {
+        right: 0;
+        top: 8%;
+        opacity: 0;
+        transform: translateX(80px);
+    }
+
+    /* 觸發進場 */
+    .bg-cloud-left.is-loaded,
+    .bg-cloud-right.is-loaded {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* 中央圖案清單：桌機橫排 */
+    .menu-list {
+        position: relative;
+        z-index: 20;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 3rem;
+        padding: 1.5rem;
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s,
+                    transform 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s;
+    }
+
+    .menu-list.is-loaded {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* 單個卡片單元 (包含圖 + 文字條) */
+    .menu-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .menu-card:hover {
+        transform: translateY(-8px);
+    }
+
+    .menu-card:hover .menu-img {
+        transform: scale(1.04);
+        filter: brightness(1.08);
+    }
+
+    .menu-card:hover .menu-label {
+        background-color: #fdfbf7;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    /* 正方形圖片容器 */
+    .menu-img-wrap {
+        width: 14rem;
+        height: 14rem;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .menu-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        transition: transform 0.3s ease, filter 0.3s ease;
+    }
+
+    /* 日式仿官網標籤樣式 */
+    .menu-label {
+        position: relative;
+        margin-top: 1.2rem;
+        width: 100%;
+        max-width: 14rem;
+        padding: 0.55rem 1rem;
+        background: #f4eee1; /* 和紙淡米色 */
+        border: 2px solid #231815; /* 深焙茶/黑邊框 */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+        transition: background-color 0.25s ease, box-shadow 0.25s ease;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* 內縮雙框線裝飾 */
+    .menu-label-inner {
+        width: 100%;
+        border: 1px solid rgba(35, 24, 21, 0.45);
+        padding: 0.3rem 0.6rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .menu-title-text {
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: 0.35rem;
+        text-indent: 0.35rem; /* 平衡字元間距 */
+        color: #231815;
+        white-space: nowrap;
+    }
+
+    /* 手機版：改為直排 */
+    @media (max-width: 768px) {
+        .hero-container {
+            height: auto;
+            min-height: 100vh;
+            padding: 4rem 1rem;
+        }
+
+        .menu-list {
+            flex-direction: column;
+            align-items: center;
+            gap: 2.2rem;
+        }
+
+        .menu-img-wrap {
+            width: 13rem;
+            height: 13rem;
+        }
+
+        .menu-label {
+            max-width: 13rem;
+            margin-top: 0.8rem;
+        }
+
+        .bg-cloud {
+            max-width: 45vw;
+        }
+    }
+    </style>
+</head>
+<body>
+  <div id="app">
+    <div class="hero-container">
+      <!-- 左側淡入裝飾圖 -->
+      <img 
+        src="public/img/index/bg_top_l.png" 
+        alt="Left Cloud" 
+        class="bg-cloud bg-cloud-left"
+        :class="{ 'is-loaded': isLoaded }"
+      />
+
+      <!-- 右側淡入裝飾圖 -->
+      <img 
+        src="public/img/index/bg_top_r.png" 
+        alt="Right Cloud" 
+        class="bg-cloud bg-cloud-right"
+        :class="{ 'is-loaded': isLoaded }"
+      />
+
+      <!-- 總包覆容器：讓 Logo 與選單垂直排列 -->
+      <div class="hero-content">
+        <!-- 頂部橫向 Logo -->
+        <div class="hero-logo-wrap" :class="{ 'is-loaded': isLoaded }">
+          <img src="public/img/index/title.png" alt="Main Title" class="hero-logo" />
+        </div>
+
+        <!-- 中央圖案與標籤 -->
+        <div class="menu-list" :class="{ 'is-loaded': isLoaded }">
+          <a 
+            v-for="(item, index) in menuList" 
+            v-bind:key="index" 
+            v-bind:href="item.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="menu-card"
+          >
+            <!-- 正方形圖案 -->
+            <div class="menu-img-wrap">
+              <img v-bind:src="item.src" v-bind:alt="item.name" class="menu-img" />
+            </div>
+
+            <!-- 下方對應的標籤組合 -->
+            <div class="menu-label">
+              <div class="menu-label-inner">
+                <span class="menu-title-text">{{ item.title }}</span>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vue3.0  -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Vue的共用元件 & 邏輯,main.js 之前引入 -->
+  <script src="../../public/vue-components/nav-bar.js"></script>
+  <script src="../../public/vue-mixins/scroll-mixin.js"></script>
+  <!-- 共用主程式 -->
+  <script type="text/javascript" src="../../public/cm-utils/main.js"></script>
+  <!-- Google Apps Script -->
+  <script type="text/javascript" src="../../public/cm-utils/gas.js"></script>
+  
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const isLoaded = ref(false);
+
+        const topic = [
+            'ichibanguzi', // 一番賞
+            'gachagacha', // 扭蛋
+            'model', // 公仔
+            'sign', // 立牌
+        ];
+
+
+
+        const menuList = ref([
+          { name: 'IchibanKuji', src: 'public/img/index/ichibanguzi.png', title: '一番賞',url:'html/ichibanguzi/guide.html' },
+          { name: 'GachaGacha', src: 'public/img/index/gachagacha.png', title: '扭蛋',url:'html/gachagacha/guide.html' },
+          { name: 'Model', src: 'public/img/index/model.png', title: '公仔',url:'html/model/guide.html' },
+          { name: 'Sign', src: 'public/img/index/sign.png', title: '立牌',url:'html/sign/guide.html' },
+        ]);
+
+        onMounted(() => {
+          requestAnimationFrame(() => {
+            isLoaded.value = true;
+          });
+        });
+
+        return {
+          isLoaded,
+          menuList
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

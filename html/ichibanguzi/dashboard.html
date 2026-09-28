@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一番賞 - 圖鑑</title>
+    <link rel="shortcut icon" type="image/x-icon" href="../../public/ico/MYICO.ico">
+</head>
+<body class="relative min-h-screen text-slate-800 overflow-x-hidden
+             before:content-[''] before:fixed before:inset-0 before:-z-10
+             before:bg-black before:bg-cover">
+
+    <div id="app">
+        <div class="flex min-h-screen bg-black">
+
+            <!-- 引入共用導覽列元件 -->
+            <nav-bar :topic="this.topicName" :depth="2"></nav-bar>
+        </div>
+    </div>
+</body>
+<!-- CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Vue3.0  -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<!-- Vue的共用元件 & 邏輯,main.js 之前引入 -->
+<script src="../../public/vue-components/nav-bar.js"></script>
+<script src="../../public/vue-mixins/scroll-mixin.js"></script>
+<!-- 共用主程式 -->
+<script type="text/javascript" src="../../public/cm-utils/main.js"></script>
+<!-- Google Apps Script -->
+<script type="text/javascript" src="../../public/cm-utils/gas.js"></script>
+
+<!-- 頁面主邏輯 -->
+<script>
+    const { createApp } = Vue;
+
+    createApp({
+        // 註冊元件
+        components: {
+            'nav-bar': NavBar
+        },
+        data() {
+            return {
+                topicName:"ichibanguzi",
+                data: [],
+                loading: true,
+                errorMsg: ''
+            }
+        },
+        methods: {
+            async fetchData() {
+                try {
+                    const response = await fetch(`../../public/assets/${this.topicName}/collection_data.json`);
+                    if (!response.ok) throw new Error('資料讀取失敗');
+                    const list = await response.json();
+                    this.data = list.map((item, idx) => ({
+                        id: idx,
+                        buyed:item['購買時間']?true:false, // 已購買
+                        shiped:item['出貨時間']?true:false, // 出貨狀態
+                        shiped_time:item['出貨時間'], // 出貨狀態
+                        picked:item['取貨時間']?true:false, // 取貨狀態
+                        topic: item['一番賞名稱'],
+                        award: item['獎項'],
+                        award_name: item['獎項名稱'],
+                        img: item['圖片網址'],
+                        price: item['價格'],
+                        or_date:item['購買時間'],
+                        or_from:item['購買管道'],
+                        or_status:item['商品狀況'],
+                        charter:item['角色標籤'],
+                    }));
+                } catch (err) {
+                    console.error(err);
+                    this.errorMsg = '圖片載入失敗,請稍後再試';
+                } finally {
+                    this.loading = false;
+                }
+            },
+        },
+        mounted() {
+            this.fetchData();
+        }
+    }).mount('#app');
+</script>
+</html>
